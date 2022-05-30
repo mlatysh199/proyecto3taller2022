@@ -2,61 +2,46 @@ import sys
 
 
 def reconstruirArbol(ArbolBase, codigo, lencodigo, byte):
-    if not lencodigo:
-        ArbolBase.append(byte)
-        ArbolBase.append([])
-        ArbolBase.append([])
-        return
-    if not ArbolBase:
-        ArbolBase.append(0)
-        ArbolBase.append([])
-        ArbolBase.append([])
-    if codigo & (1 << (lencodigo - 1)):
-        return reconstruirArbol(ArbolBase[2], codigo, lencodigo - 1, byte)
-    return reconstruirArbol(ArbolBase[1], codigo, lencodigo - 1, byte)
-
-
-def nextBit(huff, overflow, bufferx, buffery):
-	if buffery == -1:
-		buffery = 7
-		bufferx += 1
-	if bufferx == len(huff) or (bufferx == len(huff) - 1 and overflow == buffery + 1):
-		return -1, buffery, bufferx
-	return huff[bufferx] & (1 << buffery) > 0, bufferx, buffery - 1
-
-
-# Retorna -1 si lo alcanza.
-def recorrerArbol(ArbolBase, codigo, lencodigo, respuesta):
-	if not (ArbolBase[1] or ArbolBase[2]):
-		if not lencodigo: 
-			respuesta.append(ArbolBase[0])
-			return -1
-		return -2
 	if not lencodigo:
+		ArbolBase.append(byte)
+		ArbolBase.append([])
+		ArbolBase.append([])
 		return
+	if not ArbolBase:
+		ArbolBase.append(0)
+		ArbolBase.append([])
+		ArbolBase.append([])
 	if codigo & (1 << (lencodigo - 1)):
-		return recorrerArbol(ArbolBase[2], codigo, lencodigo - 1, respuesta)
-	return recorrerArbol(ArbolBase[1], codigo, lencodigo - 1, respuesta)
+		return reconstruirArbol(ArbolBase[2], codigo, lencodigo - 1, byte)
+	return reconstruirArbol(ArbolBase[1], codigo, lencodigo - 1, byte)
 
 
-def comparar(huff, arbol, overflow):
-	buffer = 1
-	lenbuffer = 0
-	bufferx, buffery = 0, 7
-	respuesta = []
-	bit, bufferx, buffery = nextBit(huff, overflow, bufferx, buffery)
-	while bit != -1:
-		buffer <<= 1
-		buffer |= bit
-		lenbuffer += 1
-		intento = recorrerArbol(arbol, buffer, lenbuffer, respuesta)
-		if intento == -2:
-			return []
-		if intento == -1:
-			buffer = 1
-			lenbuffer = 0
-		bit, bufferx, buffery = nextBit(huff, overflow, bufferx, buffery)
-	return respuesta*(not lenbuffer)
+def restante(hecho, total):
+	print(f"\r  -> {hecho}÷{total} => {100*hecho/total:.2f}%", end = "\r")
+
+
+def nextBit(huff, overflow, bytebuffer, bitbuffer):
+	if bitbuffer == -1:
+		restante(bytebuffer, len(huff))
+	bytebuffer += bitbuffer == -1
+	bitbuffer += (bitbuffer == -1) << 3
+	if bytebuffer != len(huff) and (bytebuffer != len(huff) - 1 or overflow != bitbuffer + 1):
+		return huff[bytebuffer] & (1 << bitbuffer) > 0, bytebuffer, bitbuffer - 1
+	return -1, bytebuffer, bitbuffer
+
+
+def comparar(huff, arbol, overflow, archivo):
+	bytebuffer, bitbuffer = 0, 7
+	subarbol = arbol
+	bit, bytebuffer, bitbuffer = nextBit(huff, overflow, bytebuffer, bitbuffer)
+	with open(archivo, "wb") as guardar:
+		while bit != -1:
+			subarbol = subarbol[1 + bit]
+			if not (subarbol[1] or subarbol[2]):
+				guardar.write(bytes([subarbol[0]]))
+				subarbol = arbol
+			bit, bytebuffer, bitbuffer = nextBit(huff, overflow, bytebuffer, bitbuffer)
+	return subarbol == arbol
 
 
 def main():
@@ -80,14 +65,11 @@ def main():
 		codigo = (codigo << lencod) | (arbol[i] >> (8 - lencod))
 		i += 1
 		reconstruirArbol(arbolBase, codigo, lencodNOCHANGE, valor)
-	salida = comparar(huff, arbolBase, overflow)
-	if salida:
-		with open(archivo, "wb") as guardar:
-			guardar.write(bytes(salida))
-		print(f"{archivo} descomprimido con éxito")
+	ejecucion = comparar(huff, arbolBase, overflow, archivo)
+	if ejecucion:
+		print(f"\n{archivo} descomprimido con éxito")
 		return
-	print("archivos inválidos")
-	return
+	print("\narchivos inválidos")
 
 
 if __name__ == "__main__":

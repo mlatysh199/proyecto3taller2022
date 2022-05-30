@@ -94,6 +94,10 @@ def lenBits(bits):
 	return i
 
 
+def restante(hecho, total):
+	print(f"\r  -> {hecho + 1}÷{total} => {100*(hecho + 1)/total:.2f}%", end = "\r")
+
+
 def main():
 	argumentos = sys.argv[1:]
 	frecuencias, archivo = recibirFrecuencias(argumentos[0])
@@ -104,7 +108,8 @@ def main():
 	overflow = 0
 	MSK = (1 << 8) - 1
 	with open(argumentos[0] + ".huff", "wb") as guardar:
-		for i in archivo:
+		for j in range(len(archivo)):
+			i = archivo[j]
 			lencod = lenBits(asociaciones[i])
 			if lencod + lenbuffer <= 8:
 				buffer = (buffer << lencod) | (asociaciones[i] ^ (1 << (lencod)))
@@ -120,9 +125,11 @@ def main():
 					lenbuffer -= 8
 				buffer &= (1 << lenbuffer) - 1
 				buffer |= (1 << lenbuffer)
+			restante(j, len(archivo))
 		if lenbuffer:
 			overflow = 8 - lenbuffer
 			guardar.write(bytes([(buffer << overflow) ^ (1 << 8)]))
+	print()
 	with open(argumentos[0] + ".table", "wb") as guardar:
 		guardar.write(bytes([overflow]))
 		for i in range(len(asociaciones)):
